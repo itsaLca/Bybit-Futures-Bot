@@ -4,5 +4,7 @@
   "secret": "secret-here",
   "check_leverage": "false",
   "cooldown": 0.25,
+  "assisted_data": "true",
+  "liquidation_api": "https://public.atsutane.net/liquidation",
+  "vwaps_api": "https://public.atsutane.net/research"
 }
-

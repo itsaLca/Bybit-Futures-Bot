@@ -17,6 +17,10 @@ with open('../coins.json', 'r') as fp:
     coins = json.load(fp)
 fp.close()
 
+url = urlopen(settings['liquidation_api'])
+liq_data = json.loads(url.read())
+url = urlopen(settings['vwaps_api'])
+vwaps_data = json.loads(url.read())
 
 exchange_id = 'binance'
 exchange_class = getattr(ccxt, exchange_id)
@@ -31,7 +35,6 @@ binance.load_markets()
 
 client = bybitwrapper.bybit(test=False, api_key=settings['key'], api_secret=settings['secret'])
 
-
 def load_jsons():
     #print("Checking Settings")
     with open('../coins.json', 'r') as fp:
@@ -40,27 +43,48 @@ def load_jsons():
     with open('../settings.json', 'r') as fp:
         settings = json.load(fp)
     fp.close()
+    if settings['assisted_data'] == 'true':
+        url = urlopen(settings['liquidation_api'])
+        liq_data = json.loads(url.read())
+        url = urlopen(settings['vwaps_api'])
+        vwaps_data = json.loads(url.read())
+    else:
+        pass
 
 def fetch_vwap(symbol):
     global longwap, shortwap
     tickerSymbol = symbol + '/USDT'
     tickerDump = binance.fetch_ticker(tickerSymbol)
     vwap = tickerDump['vwap']
-    for coin in coins:
-        if coin['symbol'] == symbol:
-            longwap = round(vwap - (vwap * (coin['long_vwap_offset'] / 100)), 4)
-            shortwap = round(vwap + (vwap * (coin['short_vwap_offset'] / 100)), 4)
-        else:
-            pass
-
+    if settings['assisted_data'] == 'true':
+        for coin in vwaps_data:
+            if coin['name'] == symbol:
+                longwap = round(vwap - (vwap * (coin['long'] / 100)), 4)
+                shortwap = round(vwap + (vwap * (coin['short'] / 100)), 4)
+            else:
+                pass
+    else:
+        for coin in coins:
+            if coin['symbol'] == symbol:
+                longwap = round(vwap - (vwap * (coin['long_vwap_offset'] / 100)), 4)
+                shortwap = round(vwap + (vwap * (coin['short_vwap_offset'] / 100)), 4)
+            else:
+                pass
     return vwap, longwap, shortwap
 
 def fetch_lickval(symbol):
-    for coin in coins:
-        if coin["symbol"] == symbol:
-            return coin["lick_value"]
-        else:
-            pass
+    if settings['assisted_data'] == 'true':
+        for coin in liq_data:
+            if coin["name"] == symbol:
+                return coin["mean_value"]
+            else:
+                pass
+    else:
+        for coin in coins:
+            if coin["symbol"] == symbol:
+                return coin["lick_value"]
+            else:
+                pass
 
 def load_symbols(coins):
     symbols = []
@@ -107,7 +131,6 @@ def check_positions(symbol):
                 return True, position
             else:
                 pass
-
     else:
         print("API NOT RESPONSIVE AT CHECK ORDER")
         sleep(5)
@@ -128,7 +151,6 @@ def fetch_order_size(symbol):
             qty = qtycalc * (coin['order_size_percent_balance'] / 100)
         else:
             pass
-
     return qty
 
 def set_leverage(symbol):
@@ -138,28 +160,22 @@ def set_leverage(symbol):
         else:
             pass
 
-
 def place_order(symbol, side, ticker, size):
     print('*****************************************************')
     print(symbol, side, " Entry Found!! Placing new order!!")
     print('*****************************************************')
-
     with open('../ordersize.json', 'r') as fp:
         ordersize = json.load(fp)
     fp.close()
-
     for coin in ordersize:
         if size < coin[symbol]:
             size = coin[symbol]
         else:
             size = round(size, 3)
-
     order = client.LinearOrder.LinearOrder_new(side=side, symbol=symbol+"USDT", order_type="Market", qty=size,
                                        time_in_force="GoodTillCancel", reduce_only=False,
                                        close_on_trigger=False).result()
-
     #pprint(order)
-
 
 def calculate_order(symbol, side):
     position = check_positions(symbol)
@@ -167,24 +183,20 @@ def calculate_order(symbol, side):
         if position[0] == True:
             position = position[1]
             pnl = float(position['unrealised_pnl'])
-
             if pnl < 0:
                 ticker = fetch_ticker(symbol)
                 percent_change = ticker - float(position['entry_price'])
                 pnl = (percent_change / ticker) * -100
                 print("PNL %", symbol, (-1 * pnl))
                 min_order = fetch_order_size(symbol)
-
                 multipliers = load_multipliers(coins, symbol)
                 size1 = (min_order * multipliers[0])
                 size2 = (min_order * multipliers[1])
                 size3 = (min_order * multipliers[2])
                 size4 = (min_order * multipliers[3])
-
                 dca = load_dca(coins, symbol)
                 modifiers = load_dca_values(coins, symbol)
                 print(min_order)
-
                 print("Current Position Size for ", symbol, " = ", position['size'])
                 if position['size'] <= size1:
                     size = min_order
@@ -203,13 +215,10 @@ def calculate_order(symbol, side):
                     place_order(symbol, side, ticker, size)
                 else:
                     print("At Max Size for ", symbol, " Tier or Not Outside Drawdown Settings..")
-
             else:
                 print(symbol, "Position is currently in profit so we wont do anything here    :D")
-
         else:
             print("SEARCH FOR ME THIS SHOULD NOT HAPPEN GNOME LOL")
-
     else:
         print("No Open Position Found Yet")
         ticker = fetch_ticker(symbol)
@@ -222,16 +231,13 @@ def check_liquidations():
     binance_websocket_api_manager.create_stream(['!forceOrder'], [{}])
     cycles = 5000000
     nonce = 0
-
     while True:
         lick_stream = binance_websocket_api_manager.pop_stream_data_from_stream_buffer()
-
         #settings update script
         nonce += 1
         if nonce > cycles:
             load_jsons()
             nonce = 0
-
         if lick_stream:
             data = json.loads(lick_stream)
             #pprint(data)
@@ -239,7 +245,6 @@ def check_liquidations():
                 #data = {'stream': '!forceOrder@arr', 'data': {'e': 'forceOrder', 'E': 1629656323555, 'o': {'s': 'BTCUSDT', 'S': 'BUY', 'o': 'LIMIT', 'f': 'IOC', 'q': '6', 'p': '73.2212', 'ap': '80000', 'X': 'FILLED', 'l': '6', 'z': '6', 'T': 1629656323549}}}
                 symbol = data['data']['o']['s'][:-4]
                 symbols = load_symbols(coins)
-
                 if symbol in symbols:
                     #pprint(data)
                     last = data['data']['o']['ap']
@@ -251,15 +256,12 @@ def check_liquidations():
                     now = datetime.now()
                     past = now - d1
                     duration = past.total_seconds()
-
                     if duration < 5:
                         print("---------------------------------------------------------------------------------")
                         print("Liquidation found for:", amount, "Contracts worth: $", lick_size, "on ", symbol)
-
                         vwaps = fetch_vwap(symbol)
                         ticker = fetch_ticker(symbol)
                         lick_val = fetch_lickval(symbol)
-
                         if ticker < vwaps[1] and side == 'SELL' and lick_size > lick_val:
                             side = 'Buy'
                             calculate_order(symbol, side)
@@ -268,19 +270,16 @@ def check_liquidations():
                             calculate_order(symbol, side)
                         else:
                             print("Does not Meet VWAP or Size Requirements")
-
                     else:
                         pass
                         #print("Lick timestamp to far away")
-
                 else:
                     pass
-
             except KeyError:
                 pass
 
-
 load_jsons()
+
 if settings['check_leverage'].lower() == 'true':
     for coin in coins:
         print("Setting Leverage for ", coin['symbol']+'USDT', " before Starting Bot")
