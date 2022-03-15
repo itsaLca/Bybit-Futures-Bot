@@ -6,6 +6,7 @@ import time
 from ccxt.base.errors import ExchangeError
 import json
 import logging
+from​ ​urllib​.​request​ ​import​ ​urlopen​,​Request
 from unicorn_binance_websocket_api.unicorn_binance_websocket_api_manager import BinanceWebSocketApiManager
 from prettyprinter import pprint
 import bybitwrapper
@@ -17,10 +18,14 @@ with open('../coins.json', 'r') as fp:
     coins = json.load(fp)
 fp.close()
 
-url = urlopen(settings['liquidation_api'])
-liq_data = json.loads(url.read())
-url = urlopen(settings['vwaps_api'])
-vwaps_data = json.loads(url.read())
+def fetch_assisted_data(endpoint):
+    user_agent = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) Bybit USDT BOT'}
+    url = urlopen(Request(endpoint, data=None, headers=user_agent))
+    data = json.loads(url.read())
+    return data
+
+liq_data = fetch_assisted_data(settings['liquidation_api'])
+vwaps_data = fetch_assisted_data(settings['vwaps_api'])
 
 exchange_id = 'binance'
 exchange_class = getattr(ccxt, exchange_id)
@@ -44,10 +49,8 @@ def load_jsons():
         settings = json.load(fp)
     fp.close()
     if settings['assisted_data'] == 'true':
-        url = urlopen(settings['liquidation_api'])
-        liq_data = json.loads(url.read())
-        url = urlopen(settings['vwaps_api'])
-        vwaps_data = json.loads(url.read())
+        liq_data = fetch_assisted_data(settings['liquidation_api'])
+        vwaps_data = fetch_assisted_data(settings['vwaps_api'])
     else:
         pass
 
