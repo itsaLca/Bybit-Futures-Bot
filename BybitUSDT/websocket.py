@@ -6,7 +6,8 @@ import time
 from ccxt.base.errors import ExchangeError
 import json
 import logging
-from​ ​urllib​.​request​ ​import​ ​urlopen​,​Request
+from urllib.request import urlopen,Request
+from urllib.parse import urlencode
 from unicorn_binance_websocket_api.unicorn_binance_websocket_api_manager import BinanceWebSocketApiManager
 from prettyprinter import pprint
 import bybitwrapper
