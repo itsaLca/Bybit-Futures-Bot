@@ -8,7 +8,7 @@ import json
 import logging
 from urllib.request import urlopen,Request
 from urllib.parse import urlencode
-from unicorn_binance_websocket_api.unicorn_binance_websocket_api_manager import BinanceWebSocketApiManager
+from unicorn_binance_websocket_api.manager import BinanceWebSocketApiManager
 from prettyprinter import pprint
 import bybitwrapper
 
@@ -61,7 +61,7 @@ def fetch_vwap(symbol):
     tickerDump = binance.fetch_ticker(tickerSymbol)
     vwap = tickerDump['vwap']
     if settings['assisted_data'] == 'true':
-        for coin in vwaps_data:
+        for coin in vwaps_data['data']:
             if coin['name'] == symbol:
                 longwap = round(vwap - (vwap * (coin['long'] / 100)), 4)
                 shortwap = round(vwap + (vwap * (coin['short'] / 100)), 4)
@@ -78,7 +78,7 @@ def fetch_vwap(symbol):
 
 def fetch_lickval(symbol):
     if settings['assisted_data'] == 'true':
-        for coin in liq_data:
+        for coin in liq_data['data']:
             if coin["name"] == symbol:
                 return coin["mean_value"]
             else:
