@@ -2,11 +2,6 @@
 A Trading Bot for Bybit USDT Futures with a built in strategy for Liquidation Hunting, Dollar Cost Averaging &amp; Position Control
 
 
-*First off if you enjoy using open source software please use my refferel link to create a new account when using this bot, its free and help me make more cools stuff for you guys:*
-
-https://partner.bybit.com/b/usdtbot
-
-
 ### Full Docs:
 
 https://cryptognome.gitbook.io/bybit-futures-bot/
@@ -19,9 +14,3 @@ https://cryptognome.gitbook.io/bybit-futures-bot/
 - edit coins to work with your desired strategy
 - run websocket.py
 - run profit.py
-
-
-
-Follow me on twitter for updates:
-
-https://twitter.com/Crypt0Gnome
